@@ -1,0 +1,187 @@
+# FILE: .github/workflows/e2e.yml
+# WHAT: GitHub Actions CI pipeline for the tests.
+# HOW : On push / PR / nightly / manual run: type-checks, then runs Chromium, Firefox and WebKit on Linux (2 shards each,
+#       browser chosen with the BROWSER env var) plus Chromium on Windows. Merges the HTML and Allure reports and uploads
+#       reports, evidence PDFs and screenshots as build artifacts.
+# See PROJECT_GUIDE.txt for how all files fit together.
+name: E2E Checkout Tests (VS Code / TypeScript)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '30 2 * * *' # nightly 02:30 UTC
+  workflow_dispatch:
+    inputs:
+      test_env:
+        description: 'Environment file to use (env/.env.<name>)'
+        type: choice
+        options: [qa, staging]
+        default: qa
+      grep:
+        description: 'Optional tag filter, e.g. @smoke, @negative, @pdf'
+        required: false
+        default: ''
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_ENV: ${{ inputs.test_env || 'qa' }}
+
+jobs:
+  test:
+    name: ${{ matrix.browser }} (shard ${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run tests
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: >
+          npx playwright test
+          --project=${{ matrix.browser }}
+          --shard=${{ matrix.shard }}/2
+          ${{ inputs.grep && format('--grep "{0}"', inputs.grep) || '' }}
+
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.browser }}-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 7
+
+      - name: Upload Allure results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ matrix.browser }}-${{ matrix.shard }}
+          path: reports/allure-results
+          retention-days: 7
+
+      - name: Upload evidence (step screenshots + evidence PDFs)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ matrix.browser }}-${{ matrix.shard }}
+          path: |
+            reports/evidence
+            reports/screenshots
+          retention-days: 7
+
+      - name: Upload test artifacts (downloaded PDFs, traces, videos)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}-${{ matrix.shard }}
+          path: test-results
+          retention-days: 7
+
+  windows:
+    name: chromium on Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx playwright install chromium
+      - run: npx playwright test
+        env:
+          BROWSER: chromium
+
+      - name: Upload reports and evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-reports
+          path: |
+            reports/html-report
+            reports/evidence
+            reports/screenshots
+          retention-days: 14
+
+  report:
+    name: Merge reports
+    needs: test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      - name: Merge into a single HTML report
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload merged HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-html-report
+          path: playwright-report
+          retention-days: 14
+
+      - name: Download Allure results
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/allure-results
+          pattern: allure-results-*
+          merge-multiple: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Generate Allure report
+        run: npx allure generate reports/allure-results --clean -o reports/allure-report
+
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: reports/allure-report
+          retention-days: 14

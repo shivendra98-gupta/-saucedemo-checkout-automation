@@ -1,0 +1,47 @@
+{
+  "validCustomers": [
+    { "case": "standard details", "firstName": "Jane", "lastName": "Doe", "postalCode": "560001" },
+    { "case": "alphanumeric postal code", "firstName": "John", "lastName": "Smith", "postalCode": "SW1A 1AA" },
+    { "case": "hyphenated and accented names", "firstName": "Zoë", "lastName": "O'Neil-Brown", "postalCode": "10115" }
+  ],
+  "invalidCustomers": [
+    {
+      "case": "all fields empty",
+      "firstName": "",
+      "lastName": "",
+      "postalCode": "",
+      "expectedError": "Error: First Name is required"
+    },
+    {
+      "case": "first name missing",
+      "firstName": "",
+      "lastName": "Doe",
+      "postalCode": "560001",
+      "expectedError": "Error: First Name is required"
+    },
+    {
+      "case": "last name missing",
+      "firstName": "Jane",
+      "lastName": "",
+      "postalCode": "560001",
+      "expectedError": "Error: Last Name is required"
+    },
+    {
+      "case": "postal code missing",
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "postalCode": "",
+      "expectedError": "Error: Postal Code is required"
+    }
+  ],
+  "orderInfo": {
+    "paymentInfo": "SauceCard #31337",
+    "shippingInfo": "Free Pony Express Delivery!"
+  },
+  "confirmation": {
+    "title": "Checkout: Complete!",
+    "header": "Thank you for your order!",
+    "text": "Your order has been dispatched, and will arrive just as fast as the pony can get there!",
+    "pdfMessage": "Thank you for your order! It has been dispatched, and will arrive just as fast as the pony can get there."
+  }
+}

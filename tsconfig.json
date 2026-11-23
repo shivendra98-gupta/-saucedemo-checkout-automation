@@ -1,0 +1,20 @@
+// FILE: tsconfig.json
+// TypeScript settings: strict type checking, JSON imports allowed. Used by VS Code IntelliSense and `npm run typecheck`.
+// See PROJECT_GUIDE.txt for how all files fit together.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "types": ["node"]
+  },
+  "include": ["**/*.ts", "test-data/*.json"],
+  "exclude": ["node_modules", "reports", "test-results"]
+}

@@ -1,0 +1,10 @@
+# FILE: .gitignore
+# Folders/files Git must not track (installed libraries and generated reports).
+node_modules/
+test-results/
+reports/
+blob-report/
+playwright-report/
+playwright/.cache/
+.env
+*.log

@@ -1,0 +1,75 @@
+{
+  "standardUser": { "username": "standard_user", "password": "secret_sauce" },
+  "acceptedUsers": [
+    { "username": "standard_user", "description": "Standard user" },
+    { "username": "problem_user", "description": "User with broken UI behaviour" },
+    { "username": "performance_glitch_user", "description": "User with slow responses" },
+    { "username": "error_user", "description": "User that triggers application errors" },
+    { "username": "visual_user", "description": "User with visual defects" }
+  ],
+  "invalidLogins": [
+    {
+      "case": "empty username and password",
+      "username": "",
+      "password": "",
+      "expectedError": "Epic sadface: Username is required"
+    },
+    {
+      "case": "empty username",
+      "username": "",
+      "password": "secret_sauce",
+      "expectedError": "Epic sadface: Username is required"
+    },
+    {
+      "case": "empty password",
+      "username": "standard_user",
+      "password": "",
+      "expectedError": "Epic sadface: Password is required"
+    },
+    {
+      "case": "wrong password",
+      "username": "standard_user",
+      "password": "wrong_password",
+      "expectedError": "Epic sadface: Username and password do not match any user in this service"
+    },
+    {
+      "case": "unknown username",
+      "username": "unknown_user",
+      "password": "secret_sauce",
+      "expectedError": "Epic sadface: Username and password do not match any user in this service"
+    },
+    {
+      "case": "username is case-sensitive",
+      "username": "Standard_User",
+      "password": "secret_sauce",
+      "expectedError": "Epic sadface: Username and password do not match any user in this service"
+    },
+    {
+      "case": "password is case-sensitive",
+      "username": "standard_user",
+      "password": "SECRET_SAUCE",
+      "expectedError": "Epic sadface: Username and password do not match any user in this service"
+    },
+    {
+      "case": "SQL injection string",
+      "username": "' OR '1'='1",
+      "password": "' OR '1'='1",
+      "expectedError": "Epic sadface: Username and password do not match any user in this service"
+    },
+    {
+      "case": "leading/trailing whitespace in username",
+      "username": " standard_user ",
+      "password": "secret_sauce",
+      "expectedError": "Epic sadface: Username and password do not match any user in this service"
+    },
+    {
+      "case": "locked out user",
+      "username": "locked_out_user",
+      "password": "secret_sauce",
+      "expectedError": "Epic sadface: Sorry, this user has been locked out."
+    }
+  ],
+  "messages": {
+    "loginRequiredForInventory": "Epic sadface: You can only access '/inventory.html' when you are logged in."
+  }
+}

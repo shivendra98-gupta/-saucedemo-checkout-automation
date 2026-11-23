@@ -1,0 +1,18 @@
+// FILE: .vscode/tasks.json
+// Terminal > Run Task... shortcuts: install, run tests on Chrome / Chromium / Edge, smoke, PDF, open report, clean.
+// See PROJECT_GUIDE.txt for how all files fit together.
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Install dependencies", "type": "shell", "command": "npm ci", "problemMatcher": [] },
+    { "label": "Install Playwright browsers", "type": "shell", "command": "npx playwright install chromium firefox webkit", "problemMatcher": [] },
+    { "label": "Run all tests (browser from env/.env.qa)", "type": "npm", "script": "test", "group": { "kind": "test", "isDefault": true }, "problemMatcher": [] },
+    { "label": "Run all tests (Google Chrome)", "type": "npm", "script": "test:chrome", "group": "test", "problemMatcher": [] },
+    { "label": "Run all tests (Playwright Chromium)", "type": "npm", "script": "test:chromium", "group": "test", "problemMatcher": [] },
+    { "label": "Run all tests (Microsoft Edge)", "type": "npm", "script": "test:edge", "group": "test", "problemMatcher": [] },
+    { "label": "Run smoke tests", "type": "npm", "script": "test:smoke", "group": "test", "problemMatcher": [] },
+    { "label": "Run PDF tests", "type": "npm", "script": "test:pdf", "group": "test", "problemMatcher": [] },
+    { "label": "Open HTML report", "type": "npm", "script": "report", "problemMatcher": [] },
+    { "label": "Clean reports", "type": "npm", "script": "clean", "problemMatcher": [] }
+  ]
+}

@@ -1,0 +1,6 @@
+// FILE: .vscode/extensions.json
+// VS Code suggests these extensions when the folder is opened. The Playwright extension adds the Testing view, ▶ buttons and debugging.
+// See PROJECT_GUIDE.txt for how all files fit together.
+{
+  "recommendations": ["ms-playwright.playwright"]
+}

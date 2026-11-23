@@ -1,0 +1,99 @@
+{
+  "catalog": [
+    {
+      "id": "sauce-labs-backpack",
+      "name": "Sauce Labs Backpack",
+      "price": 29.99
+    },
+    {
+      "id": "sauce-labs-bike-light",
+      "name": "Sauce Labs Bike Light",
+      "price": 9.99
+    },
+    {
+      "id": "sauce-labs-bolt-t-shirt",
+      "name": "Sauce Labs Bolt T-Shirt",
+      "price": 15.99
+    },
+    {
+      "id": "sauce-labs-fleece-jacket",
+      "name": "Sauce Labs Fleece Jacket",
+      "price": 49.99
+    },
+    {
+      "id": "sauce-labs-onesie",
+      "name": "Sauce Labs Onesie",
+      "price": 7.99
+    },
+    {
+      "id": "test.allthethings()-t-shirt-(red)",
+      "name": "Test.allTheThings() T-Shirt (Red)",
+      "price": 15.99
+    }
+  ],
+  "selections": [
+    {
+      "scenario": "single item",
+      "items": [
+        "Sauce Labs Backpack"
+      ],
+      "expected": {
+        "subtotal": 29.99,
+        "tax": 2.4,
+        "total": 32.39
+      }
+    },
+    {
+      "scenario": "two items",
+      "items": [
+        "Sauce Labs Bike Light",
+        "Sauce Labs Fleece Jacket"
+      ],
+      "expected": {
+        "subtotal": 59.98,
+        "tax": 4.8,
+        "total": 64.78
+      },
+      "knownDefect": "SauceDemo renders an unrounded float item total (\"Item total: $59.980000000000004\") for this combination"
+    },
+    {
+      "scenario": "cheapest item only",
+      "items": [
+        "Sauce Labs Onesie"
+      ],
+      "expected": {
+        "subtotal": 7.99,
+        "tax": 0.64,
+        "total": 8.63
+      }
+    },
+    {
+      "scenario": "items with identical prices",
+      "items": [
+        "Sauce Labs Bolt T-Shirt",
+        "Test.allTheThings() T-Shirt (Red)"
+      ],
+      "expected": {
+        "subtotal": 31.98,
+        "tax": 2.56,
+        "total": 34.54
+      }
+    },
+    {
+      "scenario": "entire catalog",
+      "items": [
+        "Sauce Labs Backpack",
+        "Sauce Labs Bike Light",
+        "Sauce Labs Bolt T-Shirt",
+        "Sauce Labs Fleece Jacket",
+        "Sauce Labs Onesie",
+        "Test.allTheThings() T-Shirt (Red)"
+      ],
+      "expected": {
+        "subtotal": 129.94,
+        "tax": 10.4,
+        "total": 140.34
+      }
+    }
+  ]
+}

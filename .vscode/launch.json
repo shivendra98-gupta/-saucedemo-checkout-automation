@@ -1,0 +1,28 @@
+// FILE: .vscode/launch.json
+// Run and Debug (Ctrl+Shift+D) entries. 'Debug current spec file' runs the open spec headed, 1 worker, no timeout, so breakpoints work. Browser comes from BROWSER in env/.env.qa.
+// See PROJECT_GUIDE.txt for how all files fit together.
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug current spec file (headed, browser from env/.env.qa)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/@playwright/test/cli.js",
+      "args": ["test", "${fileBasename}", "--headed", "--workers=1", "--timeout=0"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Run all tests (browser from env/.env.qa)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/@playwright/test/cli.js",
+      "args": ["test"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}

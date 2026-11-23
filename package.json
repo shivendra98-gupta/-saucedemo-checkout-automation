@@ -1,0 +1,38 @@
+{
+  "name": "saucedemo-checkout-automation-vscode",
+  "version": "1.0.0",
+  "description": "Playwright + TypeScript automation of the SauceDemo checkout flow, with step screenshots, evidence PDFs and order-PDF validation. Runs natively on Windows/macOS/Linux from VS Code, on Google Chrome by default.",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:chrome": "cross-env BROWSER=chrome playwright test",
+    "test:edge": "cross-env BROWSER=msedge playwright test",
+    "test:chromium": "cross-env BROWSER=chromium playwright test",
+    "test:firefox": "cross-env BROWSER=firefox playwright test",
+    "test:webkit": "cross-env BROWSER=webkit playwright test",
+    "test:all-browsers": "cross-env BROWSER=all playwright test --project=chromium --project=firefox --project=webkit",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:negative": "playwright test --grep @negative",
+    "test:pdf": "playwright test --grep @pdf",
+    "test:headed": "playwright test --headed --workers=1",
+    "test:ui": "playwright test --ui",
+    "test:staging": "cross-env TEST_ENV=staging playwright test",
+    "install:browsers": "playwright install chromium firefox webkit",
+    "report": "playwright show-report reports/html-report",
+    "allure:generate": "allure generate reports/allure-results --clean -o reports/allure-report",
+    "allure:open": "allure open reports/allure-report",
+    "clean": "node -e \"for (const d of ['reports','test-results','blob-report']) require('fs').rmSync(d, { recursive: true, force: true })\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1",
+    "@types/node": "^22.9.0",
+    "allure-commandline": "^2.30.0",
+    "allure-playwright": "3.3.0",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,15 @@
+// FILE: .vscode/settings.json
+// Workspace settings: use the project's TypeScript, LF line endings, hide generated folders from the explorer and search.
+// See PROJECT_GUIDE.txt for how all files fit together.
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/test-results": true,
+    "**/blob-report": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/reports": true
+  }
+}

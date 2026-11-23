@@ -1,0 +1,6 @@
+# FILE: .gitattributes
+# Keeps line endings consistent between Windows and Linux/macOS.
+# Keep consistent line endings between Windows and Linux/macOS checkouts
+* text=auto eol=lf
+*.png binary
+*.pdf binary

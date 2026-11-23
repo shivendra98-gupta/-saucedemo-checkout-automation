@@ -1,0 +1,449 @@
+===============================================================================
+ SAUCEDEMO CHECKOUT AUTOMATION - PROJECT GUIDE
+ What every file does, and how the pieces work together
+===============================================================================
+
+Tech stack : Playwright Test + TypeScript (Node.js)
+Pattern    : Page Object Model (POM) + fixtures + data-driven tests
+Runs on    : Windows / macOS / Linux, from VS Code or the terminal
+Browser    : Google Chrome installed on your PC by default (BROWSER in env/.env.qa)
+Site       : https://www.saucedemo.com
+
+Every source/config file also starts with a short header comment:
+    FILE / WHAT it is / HOW it works / USED BY
+so you can understand a file without coming back here. (package.json and the
+test-data/*.json files cannot contain comments; they are explained below.)
+
+
+-------------------------------------------------------------------------------
+ 1. HOW A TEST RUN WORKS (the big picture)
+-------------------------------------------------------------------------------
+
+  npm test
+     |
+     v
+  playwright.config.ts ........ reads config/env.config.ts (which loads env/.env.qa),
+     |                          enables the browser named by BROWSER (default
+     |                          chrome), workers, reporters
+     v
+  tests/*.spec.ts ............. the test cases. They ask for "fixtures"
+     |                          (loginPage, cartPage, snap, ...) as parameters
+     v
+  fixtures/test.fixtures.ts ... creates the page objects for each test,
+     |                          provides login helpers and the snap() screenshot
+     |                          helper, and runs the EVIDENCE collector
+     v
+  pages/*.ts .................. page objects: locators + actions for each screen
+     |                          (LoginPage, InventoryPage, CartPage, ...)
+     v
+  test-data/*.json ............ users, products, customers, expected messages
+  assertions/*.ts ............. reusable checks (totals, confirmation, PDF)
+  utils/*.ts .................. price maths, PDF reading, evidence PDF writer
+     |
+     v
+  reports/ .................... HTML / Allure / JUnit / JSON reports,
+                                step screenshots and one evidence PDF per test
+
+Flow of the main checkout test:
+  login -> add products -> cart -> fill customer info -> overview (check totals)
+  -> finish -> confirmation page (check message) -> back home (cart is empty)
+  A screenshot is taken at each step, and all of them go into the evidence PDF.
+
+Flow of the order-PDF test:
+  same checkout -> click "Generate PDF order" -> save the download ->
+  read its text -> compare customer, items, prices, totals and message with
+  what the site showed -> append the receipt pages to the evidence PDF.
+
+
+-------------------------------------------------------------------------------
+ 2. ROOT FILES
+-------------------------------------------------------------------------------
+
+package.json
+  - Lists the libraries (devDependencies) and the npm scripts.
+  - Main scripts:
+      npm test              all tests on the browser in env/.env.qa (Chrome)
+      npm run test:chrome   force Google Chrome
+      npm run test:edge     Microsoft Edge
+      npm run test:chromium / test:firefox / test:webkit   Playwright's browsers
+      npm run test:headed   watch the browser, one test at a time
+      npm run test:ui       Playwright UI mode
+      npm run test:smoke / test:negative / test:pdf        subsets by tag
+      npm run report        open the HTML report
+      npm run clean         delete old reports
+    The browser scripts set BROWSER with cross-env, which works the same in
+    PowerShell, Command Prompt and bash.
+  - Libraries:
+      @playwright/test  - browser automation + test runner
+      typescript        - type checking ("npm run typecheck")
+      dotenv            - loads env/.env.<name> files
+      cross-env         - sets environment variables the same way on Windows and Linux
+      pdf-parse         - reads text out of the downloaded order PDF
+      pdf-lib           - writes the evidence PDF (screenshots -> PDF)
+      allure-playwright / allure-commandline - Allure report
+
+package-lock.json
+  - Exact versions of every installed library. "npm ci" installs exactly these,
+    so everyone gets the same setup. Do not edit by hand.
+
+playwright.config.ts
+  - Central Playwright settings:
+      testDir        = ./tests
+      fullyParallel  = true (tests run in parallel; workers = 50% of CPU cores)
+      retries        = 2 on CI, 0 locally
+      reporters      = list/console, HTML, JUnit XML, JSON, Allure (+ blob on CI)
+      use.baseURL    = from env file, so tests can call page.goto('/cart.html')
+      testIdAttribute = 'data-test' (so getByTestId('checkout') finds
+                       elements with data-test="checkout")
+      screenshot/trace/video = kept only for FAILED tests (debugging)
+  - Browser "projects":
+      chrome, msedge            = the Chrome / Edge installed on your machine
+      chromium, firefox, webkit = Playwright's own downloaded browsers
+    Only the project named by BROWSER is enabled (default "chrome"), so
+    "npm test" and the VS Code Testing view use Google Chrome. Change it in
+    env/.env.qa, or use the npm scripts above. BROWSER=all enables every one.
+
+tsconfig.json
+  - TypeScript compiler settings (strict mode, allow importing .json files).
+    Used by VS Code for IntelliSense and by "npm run typecheck".
+
+.gitignore
+  - Keeps generated folders (node_modules, reports, test-results) out of Git.
+
+.gitattributes
+  - Forces consistent (LF) line endings so Windows and Linux checkouts
+    don't produce noisy diffs.
+
+README.md
+  - Setup and run instructions for Windows + VS Code, report locations,
+    troubleshooting.
+
+PROJECT_GUIDE.txt
+  - This file.
+
+
+-------------------------------------------------------------------------------
+ 3. .vscode/  (VS Code workspace settings - optional but handy)
+-------------------------------------------------------------------------------
+
+.vscode/extensions.json
+  - Makes VS Code suggest the "Playwright Test for VSCode" extension when the
+    folder is opened (adds the Testing view, the play buttons and debugging).
+
+.vscode/settings.json
+  - Uses the project's own TypeScript version, LF line endings, and hides
+    generated folders from the explorer and search.
+
+.vscode/launch.json
+  - "Run and Debug" entries:
+      "Debug current spec file (headed, browser from env/.env.qa)" - runs the
+        open spec file with a visible browser, one worker, no timeout, so
+        breakpoints work.
+      "Run all tests (browser from env/.env.qa)".
+
+.vscode/tasks.json
+  - Terminal > Run Task... shortcuts: install dependencies, install browsers,
+    run all tests (Google Chrome / Playwright Chromium / Edge), smoke tests,
+    PDF tests, open the report, clean reports.
+
+
+-------------------------------------------------------------------------------
+ 4. config/  and  env/  (environment configuration)
+-------------------------------------------------------------------------------
+
+env/.env.qa
+  - Default environment: BASE_URL, DEFAULT_PASSWORD, TAX_RATE (0.08),
+    DEFAULT_TIMEOUT, NAVIGATION_TIMEOUT, BROWSER (chrome | msedge | chromium |
+    firefox | webkit | all; default chrome).
+
+env/.env.staging
+  - Same keys, used when TEST_ENV=staging (npm run test:staging). It points to
+    the same site because SauceDemo has only one public host. Longer timeouts.
+
+env/.env.example
+  - Template for creating a new environment file.
+
+config/env.config.ts
+  - HOW: reads TEST_ENV (default "qa"), loads env/.env.<TEST_ENV> with dotenv,
+    checks that required values exist, and exports a frozen "envConfig" object
+    (baseURL, defaultPassword, taxRate, timeouts, browser). Any variable already
+    set in the shell or CI overrides the file. An unknown BROWSER value stops
+    the run with a clear message.
+
+config/routes.ts
+  - The URL paths of each page ("/", "/inventory.html", "/cart.html",
+    "/checkout-step-one.html", ...) in one place.
+
+
+-------------------------------------------------------------------------------
+ 5. pages/  (Page Object Model)
+-------------------------------------------------------------------------------
+ Each class holds the LOCATORS (how to find elements) and ACTIONS (what a user
+ does) for one screen. Tests never use raw selectors, only these methods.
+ Most locators use getByTestId('<data-test value>'), the most stable option.
+
+pages/BasePage.ts
+  - Parent of every page. Gives each page:
+      header        - the shared HeaderComponent
+      title         - the page title element
+      open()        - navigate to the page's path
+      expectLoaded()- assert the URL (and optionally the title) is correct
+  - escapeRegExp() safely turns a path into a regular expression.
+
+pages/components/HeaderComponent.ts
+  - The header shown on every logged-in page: cart icon, cart badge (item
+    count), burger menu. Actions: openCart(), expectCartCount(n), logout(),
+    resetAppState().
+  - HOW the menu is handled: the closed menu is only slid off-screen (it
+    still counts as "visible"), so the code waits for the menu panel's
+    aria-hidden="false" and retries open+click if a browser ignored the
+    first click (seen on Firefox right after a page load/reload).
+
+pages/components/CartItemList.ts
+  - The list of items shown on BOTH the Cart page and the Checkout Overview
+    page (reused, not duplicated).
+  - readItems() returns [{name, price, quantity}] from the screen.
+  - expectItems(products) asserts the list matches exactly (any order).
+
+pages/LoginPage.ts
+  - Username, password, login button, error message, error close button.
+  - login(user, pass), expectError(message) (also checks the red error styling),
+    dismissError(), expectOnLoginPage().
+
+pages/InventoryPage.ts
+  - The Products page. Finds a product card by its VISIBLE NAME (works even if
+    ids change).
+  - addToCart(...names), removeFromCart(...names), productPrice(name),
+    openProductDetails(name), sortBy('az'|'za'|'lohi'|'hilo'),
+    allNames(), allPrices().
+
+pages/ProductDetailsPage.ts
+  - Single product page: expectProduct(name, price), addToCart(),
+    backToProducts().
+
+pages/CartPage.ts
+  - "Your Cart": cartItems (CartItemList), removeItem(name), checkout(),
+    continueShopping().
+
+pages/CheckoutInformationPage.ts
+  - "Checkout: Your Information": first name, last name, postal code.
+  - fillCustomerInformation(customer), submit(customer), expectError(msg),
+    dismissError(), cancel().
+
+pages/CheckoutOverviewPage.ts
+  - "Checkout: Overview": items, payment info, shipping info, Item total,
+    Tax, Total labels.
+  - readTotals() turns the labels into numbers, finish(), cancel().
+
+pages/CheckoutCompletePage.ts
+  - "Checkout: Complete!": header, text, pony-express image, Back Home button,
+    "Generate PDF order" button.
+  - downloadOrderPdf() clicks the button, waits for the browser download
+    (PDF is generated in the browser, so it allows extra time) and returns it.
+
+pages/index.ts
+  - Re-exports all page classes so other files can import from '../pages'.
+
+
+-------------------------------------------------------------------------------
+ 6. fixtures/  (test setup shared by all tests)
+-------------------------------------------------------------------------------
+
+fixtures/test.fixtures.ts
+  - Extends Playwright's "test" with ready-made objects. A test asks for what it
+    needs as a parameter, e.g.  async ({ loggedIn, cartPage, snap }) => {...}
+  - Page fixtures: loginPage, inventoryPage, productDetailsPage, cartPage,
+    checkoutInformationPage, checkoutOverviewPage, checkoutCompletePage
+    (a new instance for every test, so parallel tests never share state).
+  - loginAs(username?, password?) - opens login page, logs in, checks Products
+    page is shown (default user: standard_user).
+  - loggedIn - already logged in as standard_user; gives the InventoryPage.
+  - snap(name) - takes a full-page screenshot, attaches it to the HTML/Allure
+    report, and adds it to this test's evidence.
+  - evidence (AUTOMATIC, runs for every test):
+      before the test: starts an empty evidence collection
+      during the test: snap() adds screenshots; tests can add documents
+                       (the order-PDF test adds the downloaded receipt)
+      after the test : takes a final screenshot, saves all screenshots as
+                       reports/screenshots/<test>-<browser>/01-....png,
+                       builds reports/evidence/<test>-<browser>.pdf and
+                       attaches it to the HTML report.
+    If writing evidence fails it only prints a warning and never fails the test.
+  - What a test ends up with:
+      PASSED : step screenshots + final screenshot (in the HTML report, as PNG
+               files and in the evidence PDF with a green PASSED cover)
+      FAILED : the same, with the final screenshot showing the screen at the
+               moment of failure, a red FAILED cover with the error message,
+               PLUS Playwright's own failure screenshot, video and trace
+               (playwright.config.ts: only-on-failure / retain-on-failure)
+
+
+-------------------------------------------------------------------------------
+ 7. test-data/  (data-driven inputs and expected results)
+-------------------------------------------------------------------------------
+
+test-data/users.json
+  - standardUser, the 5 acceptedUsers, 10 invalidLogins (each with the EXACT
+    expected error message), and the "login required" message.
+
+test-data/products.json
+  - catalog: all 6 products with name and price.
+  - selections: checkout scenarios (single item, two items, cheapest, same
+    price, entire catalog) with the expected subtotal, tax and total.
+    "knownDefect" marks a scenario where the site itself is wrong.
+
+test-data/checkout.json
+  - validCustomers (3), invalidCustomers (4, with expected error),
+    payment/shipping text, confirmation page texts and the PDF message.
+
+test-data/index.ts
+  - Loads the JSON files with TypeScript types and exports Users, Products,
+    CheckoutData, and productByName(name) (fails fast on a typo).
+  - To add a new test case, usually you only edit a JSON file. The data-driven
+    tests loop over these arrays automatically.
+
+
+-------------------------------------------------------------------------------
+ 8. assertions/  (reusable validations)
+-------------------------------------------------------------------------------
+
+assertions/checkout.assertions.ts
+  - expectOrderTotals(overview, items, taxRate, expected?)
+      HOW: reads the line items from the screen, CALCULATES the correct
+      subtotal, tax (subtotal x rate, rounded to cents) and total itself, then
+      checks: screen == calculated, screen subtotal + tax == screen total,
+      screen == expected values from test data, and the label text has exactly
+      2 decimals (this caught the "$59.980000000000004" bug). Also checks
+      payment and shipping info. Uses soft assertions, so every mismatch is
+      reported, not only the first.
+  - expectOrderConfirmation(completePage)
+      Title, "Thank you for your order!", dispatch text, image visible,
+      Back Home button, cart badge cleared.
+  - expectOrderPdf(parsedPdf, {customer, items, totals})
+      File name pattern, size, 1 page, brand, title, order date, ship-to name
+      and postal code, every item with its price, item total, tax, grand
+      total, thank-you message.
+
+
+-------------------------------------------------------------------------------
+ 9. utils/  (helpers)
+-------------------------------------------------------------------------------
+
+utils/price.utils.ts
+  - parseMoney("Item total: $29.99") -> 29.99
+  - roundCurrency(x) -> 2-decimal rounding without float errors
+  - formatMoney(29.99) -> "$29.99"
+  - calculateOrderTotals(prices, taxRate) -> {subtotal, tax, total}
+    (the independent calculation the assertions compare against)
+
+utils/pdf.utils.ts
+  - saveAndParsePdf(download, testInfo): saves the browser download into the
+    test's output folder, attaches it to the report, and parses it.
+  - parsePdfFile(path): uses pdf-parse to return file name, size, page
+    count, metadata and text.
+  - compact(text): removes all spaces and lowercases. The receipt uses
+    letter-spaced headings ("O R D E R  D E T A I L S"), so comparisons are
+    done on compacted text.
+  - isPdfBuffer(path): checks the file really starts with "%PDF-".
+
+utils/evidence.utils.ts
+  - saveScreenshots(evidence, testInfo): writes numbered PNG files.
+  - buildEvidencePdf(evidence, testInfo): uses pdf-lib to create an A4 PDF:
+      page 1   - cover: test name, suite, spec file, browser, start time,
+                 duration, retry, status (green PASSED / red FAILED /
+                 "expected failure - known defect"), annotations, the error
+                 message for failed tests, and the list of steps
+      page 2.. - one page per screenshot, with "Step N of M: <name>" caption
+                 and timestamp, image scaled to fit the page
+      then     - any attached documents (e.g. the downloaded order receipt)
+                 copied in page by page
+  - safeName(): makes file names valid on Windows (removes \ / : * ? " < > |).
+
+
+-------------------------------------------------------------------------------
+ 10. tests/  (the test cases - 59 in total)
+-------------------------------------------------------------------------------
+ Tags in test names let you run subsets: @smoke, @negative, @pdf.
+
+tests/login.spec.ts  (24 tests)
+  Positive: each of the 5 accepted users can log in (and the session cookie is
+            set), login with the Enter key, password is masked, logout clears
+            the session.
+  Negative: 10 invalid logins from users.json, error can be dismissed,
+            5 protected pages redirect to login with the right message.
+
+tests/cart.spec.ts  (14 tests)
+  Catalog names and prices, add one item (badge + button change), cart lists
+  every item, remove from the products page, remove from the cart page, empty
+  cart, add from the details page, continue shopping keeps the cart, cart
+  survives reload and re-login, reset app state, sort A-Z / Z-A / price low-high /
+  price high-low.
+
+tests/checkout.spec.ts  (18 tests)
+  End to end, for each product selection in products.json:
+     login -> add items -> cart -> customer info -> overview totals ->
+     finish -> confirmation -> back home; 6 screenshots per test.
+  Accepted customer data variants; performance_glitch_user checkout.
+  Negative: each missing field shows the right error, error can be dismissed
+  and the form resubmitted, cancel on the info step, cancel on the overview step.
+  Known defects (test.fail): unrounded item total, problem_user cannot type a
+  last name, error_user cannot finish the order. These PASS while the bug
+  exists and turn red once the site is fixed.
+
+tests/order-pdf.spec.ts  (3 tests)
+  Places an order, clicks "Generate PDF order", saves and parses the PDF and
+  validates it with expectOrderPdf(). The receipt is appended to the
+  test's evidence PDF.
+
+
+-------------------------------------------------------------------------------
+ 11. GENERATED FOLDERS (created when tests run; safe to delete: npm run clean)
+-------------------------------------------------------------------------------
+
+node_modules/                 installed libraries (npm ci)
+reports/html-report/          Playwright HTML report        -> npm run report
+reports/evidence/             one evidence PDF per test
+reports/screenshots/          numbered step screenshots per test
+reports/allure-results/       raw Allure data               -> npm run allure:generate
+reports/junit/results.xml     JUnit XML (for CI dashboards)
+reports/json/results.json     machine-readable results
+test-results/                 per-test output: downloaded order PDFs, plus
+                              trace.zip / video / screenshot for FAILED tests
+
+
+-------------------------------------------------------------------------------
+ 12. docs/  and  .github/
+-------------------------------------------------------------------------------
+
+docs/screenshots/                   sample screenshots from a real run
+docs/sample-order-confirmation.pdf  a real receipt downloaded from the site
+docs/sample-evidence-checkout-flow.pdf  sample evidence PDF (checkout flow)
+docs/sample-evidence-pdf-flow.pdf   sample evidence PDF (order-PDF flow)
+docs/GENAI.md                       how GenAI was used for each assignment task
+                                    (prompts, outputs, how they were verified)
+
+.github/workflows/e2e.yml
+  GitHub Actions CI. On push / pull request / nightly / manual:
+    - Linux: Chromium, Firefox, WebKit, each split into 2 parallel shards
+      (the job sets BROWSER=<name>)
+    - Windows: Chromium (BROWSER=chromium)
+    - merges everything into one HTML report and one Allure report
+    - uploads reports, evidence PDFs, screenshots and downloads as artifacts
+
+
+-------------------------------------------------------------------------------
+ 13. COMMON CHANGES - WHERE TO EDIT
+-------------------------------------------------------------------------------
+
+Add a login case ................ test-data/users.json  (invalidLogins)
+Add a checkout scenario ......... test-data/products.json (selections)
+Add a customer data case ........ test-data/checkout.json
+A locator changed on the site ... the matching file in pages/
+New page/screen ................. new class in pages/ extending BasePage,
+                                  export it in pages/index.ts, add a fixture
+                                  in fixtures/test.fixtures.ts
+Add a screenshot step ........... call  await snap('step name')  in the test
+Change URL / timeouts / tax ..... env/.env.qa
+Change the default browser ...... BROWSER= in env/.env.qa  (chrome, msedge,
+                                  chromium, firefox, webkit)
+Change parallelism / reporters .. playwright.config.ts
